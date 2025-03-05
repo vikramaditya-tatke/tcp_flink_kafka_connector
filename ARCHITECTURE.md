@@ -3,6 +3,36 @@
 ## Overview
 A dual-component system for generating and consuming Windows-style event logs over TCP:
 
+```mermaid
+sequenceDiagram
+    participant Producer
+    participant Consumer1
+    participant Consumer2
+    
+    Producer->>Producer: Start ServerSocket(9999)
+    loop Infinite
+        Producer->>+Consumer1: Accept connection
+        Producer->>+Consumer2: Accept connection
+        par Concurrent Data Streams
+            Consumer1-->>Producer: Connection established
+            loop Every 1 second
+                Producer-->>Consumer1: Send NDJSON batch
+            end
+            Consumer2-->>Producer: Connection established
+            loop Every 1 second
+                Producer-->>Consumer2: Send NDJSON batch
+            end
+        end
+    end
+    
+    Consumer1->>Consumer1: Connect to 9999
+    Consumer2->>Consumer2: Connect to 9999
+    loop Continuous
+        Consumer1-->>Consumer1: Read/process NDJSON
+        Consumer2-->>Consumer2: Read/process NDJSON
+    end
+```
+
 - **DataProducer**: TCP server generating synthetic Windows event logs
 - **DataConsumer**: TCP client reading and processing log streams
 
