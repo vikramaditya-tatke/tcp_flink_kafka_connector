@@ -217,6 +217,8 @@ An alternative approach using the Flink Web UI:
 docker logs $(docker ps | grep taskmanager | awk '{print $1}')
 ```
 
+> **Note on Metrics**: When using socketTextStream in Flink, you may notice that metrics in the Flink UI (such as Bytes Received, Records Received, Bytes Sent, and Records Sent) show 0 even though the application is working correctly. This is a known limitation of the socketTextStream source, which doesn't properly report metrics to Flink's metrics system. The absence of these metrics does not indicate a problem with your application. To verify that data is flowing, check the TaskManager logs as shown above. For production deployments where detailed metrics are critical, consider using other sources like Kafka connectors which provide comprehensive metrics reporting.
+
 ## Fault Tolerance and Behavior
 
 ### What happens if the DataProducer stops?
