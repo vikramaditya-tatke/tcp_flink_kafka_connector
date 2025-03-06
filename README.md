@@ -101,28 +101,19 @@ classDiagram
         +map(JsonNode): Tuple4
     }
     
-    class SecurityEventFilter {
-        +filter(JsonNode): boolean
-    }
-    
     DataConsumerFlink --> JsonParserFunction: uses
     DataConsumerFlink --> EventInfoExtractor: uses
-    DataConsumerFlink --> SecurityEventFilter: uses
 ```
 
 **Key Features:**
 - Connects to the DataProducer via Flink's socketTextStream
 - Parses JSON data into structured records
-- Applies multiple stream processing operations:
-  - Event info extraction
-  - Filtering for security events
-  - Windowed aggregation by event source
-- Outputs processed results to the console
+- Extracts and formats event information
+- Outputs processed events to the console
 
 **Implementation Details:**
 - Uses Flink's DataStream API for stream processing
-- Implements custom functions for parsing, mapping, and filtering
-- Applies tumbling windows for time-based aggregations
+- Implements custom functions for parsing and mapping JSON data
 - Handles JSON processing with Jackson (via Flink's shaded version)
 - Includes proper error handling to maintain stream integrity
 
@@ -224,3 +215,25 @@ An alternative approach using the Flink Web UI:
 - Check the TaskManager logs for processing results:
 ```bash
 docker logs $(docker ps | grep taskmanager | awk '{print $1}')
+```
+
+## Fault Tolerance and Behavior
+
+### What happens if the DataProducer stops?
+
+When the DataProducer application stops:
+
+1. **DataConsumer**: The simple Java client will terminate with an IOException when the socket connection is closed.
+
+2. **DataConsumerFlink**: The Flink job will **continue running** but enter a reconnection loop:
+   - Flink's socketTextStream source is designed to be fault-tolerant
+   - The job will periodically attempt to reconnect to the socket
+   - You'll see connection retry attempts in the TaskManager logs
+   - The job remains in "RUNNING" state in the Flink UI
+   - When the DataProducer restarts, the Flink job will automatically reconnect and resume processing
+
+This behavior makes the Flink application resilient to temporary producer failures or restarts. To completely stop the job, you need to cancel it explicitly through the Flink UI or CLI:
+
+```bash
+# Cancel the job via CLI (you'll need the job ID from the Flink UI)
+docker exec -it apache_streampark-jobmanager-1 flink cancel <job_id>
