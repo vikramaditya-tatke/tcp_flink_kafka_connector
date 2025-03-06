@@ -11,12 +11,8 @@ public class DataProducer {
     
     public static void main(String[] args) throws IOException {
         ExecutorService pool = Executors.newCachedThreadPool();
-        try (ServerSocket serverSocket = new ServerSocket(PORT, 0, java.net.InetAddress.getByName("0.0.0.0"))) {
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.out.println("\nShutting down thread pool...");
-                pool.shutdown();
-            }));
-            
+        try (ServerSocket serverSocket = new ServerSocket(PORT, 0, InetAddress.getByName("0.0.0.0"))) {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> pool.shutdown()));
             System.out.println("Producer started on port " + PORT);
             
             while (true) {
@@ -37,8 +33,7 @@ public class DataProducer {
         public void run() {
             try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
                 while (!socket.isClosed()) {
-                    String logEntry = generateLogEntry();
-                    out.println(logEntry);
+                    out.println(generateLogEntry());
                     Thread.sleep(1000);
                 }
             } catch (Exception e) {
