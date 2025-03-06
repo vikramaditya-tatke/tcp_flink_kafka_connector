@@ -225,103 +225,50 @@ docker logs $(docker ps | grep taskmanager | awk '{print $1}')
 
 > **Note on Metrics**: When using socketTextStream in Flink, you may notice that metrics in the Flink UI (such as Bytes Received, Records Received, Bytes Sent, and Records Sent) show 0 even though the application is working correctly. This is a known limitation of the socketTextStream source, which doesn't properly report metrics to Flink's metrics system. The absence of these metrics does not indicate a problem with your application. To verify that data is flowing, check the TaskManager logs as shown above. For production deployments where detailed metrics are critical, consider using other sources like Kafka connectors which provide comprehensive metrics reporting.
 
+
 ## Fault Tolerance and Behavior
-Infrastructure
-```bash
-# Start the c, KWfka, ZooKeeper, and Kafka UIt happens if the DataProducer stops?
-
-n the DataProducer application stops:
-1*CCocknthum ell se*viTh *ae rnnning
-doskum- omposeFpl
-
-# Se tp Ktfke toeibs ind pepmissiens
-./setip-kafka.shcally attempt to reconnect to the socket
-   - You'll see connection retry attempts in the TaskManager logs
-   - The job remains in "RUNNING" state in the Flink UI
-   - When the DaPradocuc, the Flink job will automatically reconnect and resume processing
-
-This bePradoc makes the Flink application resilient to temporary producer failures or restarts. To completely stop the job, you need to cancel it explicitly through the Flink UI or CLI:
-Prdc
-```bashPrdc
-# Cancel the job via CLI (you'll need the job ID from the Flink UI)
-docker exec -it apache_streampark-jobmanager-1 flink cancel <job_id>
-d-c-f and Kafka configurationd-c-f \
-  \
- 99 \
-  --kafka-bootstrap-servers kafka:02 \  --kafka-topic events_processed \
-  --kafka-security-protocol SASL_PLAINTEXT
-d-c-f
-  ``
-   99 --kafka-bootstrap-servers kafka:02 --kafka-topic events_processed --kafka-security-protocol SASL_PLAINTEXT
-   ``the ipl
-
-#### Fink UIdail####Kafka UI
-- Access hKafka UI at http://lcalhost:8080
--onio top
-  - View topics list andtir cofigratos
-  -Che mssag couns ndpartitodistributo
- - Brwseessgesi he tops
--Moniorconsus:
-  - Trak conumergroups adirag
-- View conmerofftand prossng rats
-
-####Vifying Data Flow
-```bah
-#Vwmsags i heKfkatopi
-dckexec -iapac_strampark-kafka-1kafka-cnsole-consmer.s\
-  --boostrap-srverkfka:9092 \
-  --to evens_prcesed\
-  --fom-begnin\
-  --prpety pint.ky=rue \
-  --propertkey.eparator=:\
---cosumer.cfig/ec/kafk/consumer.properes
-```
-
-> **NtenMerics**: Unlik, the KafkaconnectnFlikvidscompehensiv inhe UI,nludingbte/rcordsreceivdnd t.T are valuablefrmoitring hehelhndefrmancofdat iee
-
-## Faultlerance andBehaior
 
 ### System Resilience
 
-The intgaton oApaceKfkprovdes everalaut tlerabenefis:
+The integration of Apache Kafka provides several built-in benefits:
 
-1. **Mse Psistence**:Eventre afelytred iKfka tpics enif dwnsteamessors fal
-2. **At-least-ceDiver**: Msags aguaranted o b processeven afe omponentfilus
-3.**Consume Reslene**:Cumscan resmefrm ilat ffset after eovry
-4.**Scalabity**:'spartitiig modl allworzontal saling of botucrs andu
+1. **Message Persistence**: Events are safely stored in Kafka topics even if downstream processors fail
+2. **At-least-once Delivery**: Messages are guaranteed to be processed even after component failures
+3. **Consumer Resilience**: Consumers can resume from last committed offset after recovery
+4. **Scalability**: Partitioning model allows horizontal scaling of both producers and consumers
 
-###ComnenilreSrs##### What happens if Kafka stops?
+### Component Failures
 
-Wen the Kafka broker temporarily unavailal:
+#### What happens if Kafka stops?
 
-1. **DataConsumerFlink**: Te Flink job will buffer dta n memory up to cnfigued limits:
-   - Flink willattept to reconnect to Kafka with a bcoff stratgy
+When the Kafka broker is temporarily unavailable:
+
+1. **DataConsumerFlink**: The Flink job will buffer data in memory up to configured limits:
+   - Flink will attempt to reconnect to Kafka with a backoff strategy
    - Once Kafka is available again, the buffered data will be written
-   - If the buffer overflow, job may faildepending on configuration
-   - With proper checkpointing,  can recovernd rerocess data after restart
+   - If the buffer overflows, the job may fail depending on configuration
+   - With proper checkpointing, the job can recover and reprocess data after restart
 
-2. **Dependent Consumers**: Any consumers reading from Kafka tos will:
-   - Puse consumpn until Kafka is available agai
-   - Resumefom thr ast commtted offst whe Kafka reurns
-  - No lse anydaa du to Kafka's persistence odel
+2. **Dependent Consumers**: Any consumers reading from Kafka topics will:
+   - Pause consumption until Kafka is available again
+   - Resume from the last committed offset when Kafka returns
+   - Not lose any data due to Kafka's persistence model
 
-#### What hapens if the Flink job fails?
+#### What happens if the Flink job fails?
 
-If the Flink jb fails and estts:
+If the Flink job fails and restarts:
 
 1. **Data Processing**: No data is lost because:
-   - Data in Kafka topics remains available forreocessing
-   - Flink's checkpinting ensres processing state is reoverable
-   - Kafka consumofsets are committed ccordng to checkpoint competion
+   - Data in Kafka topics remains available for reprocessing
+   - Flink's checkpointing ensures processing state is recoverable
+   - Kafka consumer offsets are committed according to checkpoint completion
 
 2. **Recovery Process**:
-   - The job atomatically start (ifcnfigued)
-   -Pocessing resumes from the last successful checkpoint
-   - Exactly-once smantic can be mainined with prope configuraion
+   - The job automatically restarts (if configured)
+   - Processing resumes from the last successful checkpoint
+   - Exactly-once semantics can be maintained with proper configuration
 
-###Shutting Down Components
-
-
+### Shutting Down Components
 
 # To stop the entire infrastructure
 docker-compose down
