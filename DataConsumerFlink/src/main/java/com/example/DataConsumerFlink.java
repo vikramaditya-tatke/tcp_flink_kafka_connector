@@ -1,22 +1,14 @@
 package com.example;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.time.Instant;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Flink application that consumes data from a TCP socket.
@@ -66,30 +58,6 @@ public class DataConsumerFlink {
             .name("Event Info Extractor")
             .print()
             .name("Print Raw Events");
-            
-        // Filter for security events and print count per 10 seconds
-        jsonEvents
-            .filter(new SecurityEventFilter())
-            .map(event -> Tuple2.of("Security Event", 1), Types.TUPLE(Types.STRING, Types.INT))
-            .keyBy(tuple -> tuple.f0)
-            .window(TumblingProcessingTimeWindows.of(Time.seconds(10)))
-            .sum(1)
-            .name("Count Security Events")
-            .print()
-            .name("Print Security Event Counts");
-        
-        // Group events by source and count them per 10 seconds
-        jsonEvents
-            .map(event -> {
-                String source = event.get("source").asText();
-                return Tuple2.of(source, 1);
-            }, Types.TUPLE(Types.STRING, Types.INT))
-            .keyBy(tuple -> tuple.f0)
-            .window(TumblingProcessingTimeWindows.of(Time.seconds(10)))
-            .sum(1)
-            .name("Count Events By Source")
-            .print()
-            .name("Print Source Counts");
         
         // Execute program
         env.execute("Flink Socket Data Consumer");
@@ -125,17 +93,6 @@ public class DataConsumerFlink {
             String message = event.has("message") ? event.get("message").asText() : "No message";
             
             return Tuple4.of(eventId, level, source, message);
-        }
-    }
-    
-    /**
-     * Filter to extract only security events
-     */
-    public static class SecurityEventFilter implements FilterFunction<JsonNode> {
-        @Override
-        public boolean filter(JsonNode event) throws Exception {
-            return event.has("source") &&
-                   "Security".equals(event.get("source").asText());
         }
     }
 }
