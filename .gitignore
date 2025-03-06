@@ -1,2 +1,5 @@
 .vscode
 .idea
+.producer.pid
+DataConsumerFlink/target/
+DataProducer/build/

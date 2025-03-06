@@ -1,26 +1,27 @@
-# Real-time Event Processing Pipeline
+# Real-time Event Processing Pipeline with Kafka
 
-A distributed data processing system that demonstrates real-time event ingestion and analysis using Java and Apache Flink.
+A distributed data processing system that demonstrates real-time event ingestion and analysis using Java, Apache Flink, and Apache Kafka.
 
 ## Architecture Overview
 
-This project implements a data pipeline with three main components:
+This project implements a data pipeline with the following components:
 - A data producer that generates synthetic Windows event log data
-- A simple Java consumer that reads the data stream
-- A Flink-based stream processing application that performs real-time analytics
+- A Flink-based stream processing application that ingests data and writes to Kafka
+- Apache Kafka for reliable message queuing
+- A Kafka UI for monitoring and managing Kafka topics
 
 ```mermaid
 graph LR
-    A[DataProducer] -->|TCP Socket 9999| B[DataConsumer]
-    A -->|TCP Socket 9999| C[DataConsumerFlink]
-    C -->|Processing| D[Flink Cluster]
-    D -->|Results| E[Console Output]
+    A[DataProducer] -->|TCP Socket 9999| C[DataConsumerFlink]
+    C -->|Stream Processing| D[Flink Cluster]
+    D -->|Processed Events| F[Kafka]
+    F -->|Monitoring| G[Kafka UI]
     
     style A fill:#f9d77e,stroke:#e6b73e
-    style B fill:#a1c9f4,stroke:#5d99d6
     style C fill:#ffb8b8,stroke:#e38484
     style D fill:#c3e1c3,stroke:#7fbd7f
-    style E fill:#dddddd,stroke:#aaaaaa
+    style F fill:#b5a8ff,stroke:#8878db
+    style G fill:#ffc3a1,stroke:#e6926f
 ```
 
 ## Components
@@ -83,7 +84,7 @@ classDiagram
 
 ### DataConsumerFlink
 
-An Apache Flink application that performs real-time stream processing on the event data.
+An Apache Flink application that performs real-time stream processing on the event data and writes the results to Kafka.
 
 ```mermaid
 classDiagram
@@ -97,25 +98,30 @@ classDiagram
         +map(String): JsonNode
     }
     
-    class EventInfoExtractor {
-        +map(JsonNode): Tuple4
+    class KafkaSink {
+        +builder()
+        +setBootstrapServers(String)
+        +setRecordSerializer(KafkaRecordSerializationSchema)
+        +setDeliveryGuarantee(DeliveryGuarantee)
+        +build()
     }
     
     DataConsumerFlink --> JsonParserFunction: uses
-    DataConsumerFlink --> EventInfoExtractor: uses
+    DataConsumerFlink --> KafkaSink: writes to
 ```
 
 **Key Features:**
 - Connects to the DataProducer via Flink's socketTextStream
 - Parses JSON data into structured records
-- Extracts and formats event information
-- Outputs processed events to the console
+- Extracts and processes event information
+- Writes processed events to Kafka with at-least-once delivery guarantee
 
 **Implementation Details:**
 - Uses Flink's DataStream API for stream processing
 - Implements custom functions for parsing and mapping JSON data
-- Handles JSON processing with Jackson (via Flink's shaded version)
-- Includes proper error handling to maintain stream integrity
+- Uses Flink's Kafka connector for reliable message delivery
+- Configures proper error handling to maintain stream integrity
+- Supports parameterization of hostnames, ports, and Kafka settings
 
 ## Configuration Files
 
@@ -220,22 +226,102 @@ docker logs $(docker ps | grep taskmanager | awk '{print $1}')
 > **Note on Metrics**: When using socketTextStream in Flink, you may notice that metrics in the Flink UI (such as Bytes Received, Records Received, Bytes Sent, and Records Sent) show 0 even though the application is working correctly. This is a known limitation of the socketTextStream source, which doesn't properly report metrics to Flink's metrics system. The absence of these metrics does not indicate a problem with your application. To verify that data is flowing, check the TaskManager logs as shown above. For production deployments where detailed metrics are critical, consider using other sources like Kafka connectors which provide comprehensive metrics reporting.
 
 ## Fault Tolerance and Behavior
+Infrastructure
+```bash
+# Start the c, KWfka, ZooKeeper, and Kafka UIt happens if the DataProducer stops?
 
-### What happens if the DataProducer stops?
+n the DataProducer application stops:
+1*CCocknthum ell se*viTh *ae rnnning
+doskum- omposeFpl
 
-When the DataProducer application stops:
-
-1. **DataConsumer**: The simple Java client will terminate with an IOException when the socket connection is closed.
-
-2. **DataConsumerFlink**: The Flink job will **continue running** but enter a reconnection loop:
-   - Flink's socketTextStream source is designed to be fault-tolerant
-   - The job will periodically attempt to reconnect to the socket
+# Se tp Ktfke toeibs ind pepmissiens
+./setip-kafka.shcally attempt to reconnect to the socket
    - You'll see connection retry attempts in the TaskManager logs
    - The job remains in "RUNNING" state in the Flink UI
-   - When the DataProducer restarts, the Flink job will automatically reconnect and resume processing
+   - When the DaPradocuc, the Flink job will automatically reconnect and resume processing
 
-This behavior makes the Flink application resilient to temporary producer failures or restarts. To completely stop the job, you need to cancel it explicitly through the Flink UI or CLI:
-
-```bash
+This bePradoc makes the Flink application resilient to temporary producer failures or restarts. To completely stop the job, you need to cancel it explicitly through the Flink UI or CLI:
+Prdc
+```bashPrdc
 # Cancel the job via CLI (you'll need the job ID from the Flink UI)
 docker exec -it apache_streampark-jobmanager-1 flink cancel <job_id>
+d-c-f and Kafka configurationd-c-f \
+  \
+ 99 \
+  --kafka-bootstrap-servers kafka:02 \  --kafka-topic events_processed \
+  --kafka-security-protocol SASL_PLAINTEXT
+d-c-f
+  ``
+   99 --kafka-bootstrap-servers kafka:02 --kafka-topic events_processed --kafka-security-protocol SASL_PLAINTEXT
+   ``the ipl
+
+#### Fink UIdail####Kafka UI
+- Access hKafka UI at http://lcalhost:8080
+-onio top
+  - View topics list andtir cofigratos
+  -Che mssag couns ndpartitodistributo
+ - Brwseessgesi he tops
+-Moniorconsus:
+  - Trak conumergroups adirag
+- View conmerofftand prossng rats
+
+####Vifying Data Flow
+```bah
+#Vwmsags i heKfkatopi
+dckexec -iapac_strampark-kafka-1kafka-cnsole-consmer.s\
+  --boostrap-srverkfka:9092 \
+  --to evens_prcesed\
+  --fom-begnin\
+  --prpety pint.ky=rue \
+  --propertkey.eparator=:\
+--cosumer.cfig/ec/kafk/consumer.properes
+```
+
+> **NtenMerics**: Unlik, the KafkaconnectnFlikvidscompehensiv inhe UI,nludingbte/rcordsreceivdnd t.T are valuablefrmoitring hehelhndefrmancofdat iee
+
+## Faultlerance andBehaior
+
+### System Resilience
+
+The intgaton oApaceKfkprovdes everalaut tlerabenefis:
+
+1. **Mse Psistence**:Eventre afelytred iKfka tpics enif dwnsteamessors fal
+2. **At-least-ceDiver**: Msags aguaranted o b processeven afe omponentfilus
+3.**Consume Reslene**:Cumscan resmefrm ilat ffset after eovry
+4.**Scalabity**:'spartitiig modl allworzontal saling of botucrs andu
+
+###ComnenilreSrs##### What happens if Kafka stops?
+
+Wen the Kafka broker temporarily unavailal:
+
+1. **DataConsumerFlink**: Te Flink job will buffer dta n memory up to cnfigued limits:
+   - Flink willattept to reconnect to Kafka with a bcoff stratgy
+   - Once Kafka is available again, the buffered data will be written
+   - If the buffer overflow, job may faildepending on configuration
+   - With proper checkpointing,  can recovernd rerocess data after restart
+
+2. **Dependent Consumers**: Any consumers reading from Kafka tos will:
+   - Puse consumpn until Kafka is available agai
+   - Resumefom thr ast commtted offst whe Kafka reurns
+  - No lse anydaa du to Kafka's persistence odel
+
+#### What hapens if the Flink job fails?
+
+If the Flink jb fails and estts:
+
+1. **Data Processing**: No data is lost because:
+   - Data in Kafka topics remains available forreocessing
+   - Flink's checkpinting ensres processing state is reoverable
+   - Kafka consumofsets are committed ccordng to checkpoint competion
+
+2. **Recovery Process**:
+   - The job atomatically start (ifcnfigued)
+   -Pocessing resumes from the last successful checkpoint
+   - Exactly-once smantic can be mainined with prope configuraion
+
+###Shutting Down Components
+
+
+
+# To stop the entire infrastructure
+docker-compose down
