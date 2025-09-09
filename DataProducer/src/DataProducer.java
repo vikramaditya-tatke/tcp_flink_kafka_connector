@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.*;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,7 +36,7 @@ public class DataProducer {
             try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
                 while (!socket.isClosed()) {
                     out.println(generateLogEntry());
-                    Thread.sleep(1000);
+                    Thread.sleep(10);
                 }
             } catch (Exception e) {
                 System.err.println("Client connection error: " + e.getMessage());
@@ -55,12 +57,15 @@ public class DataProducer {
                 default -> appIds[random.nextInt(appIds.length)];
             };
 
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+                                                       .withZone(ZoneId.of("UTC"));
+
             return String.format(
                 "{\"eventId\":%d,\"level\":\"%s\",\"source\":\"%s\",\"timestamp\":\"%s\",\"computer\":\"%s\",\"user\":\"%s\",\"message\":\"%s\"}",
                 eventId,
                 levels[random.nextInt(levels.length)],
                 source,
-                Instant.now().toString(),
+                formatter.format(Instant.now()),
                 "SERVER" + (random.nextInt(5) + 1),
                 random.nextBoolean() ? "SYSTEM" : "ADMIN",
                 "Simulated Windows event: " + source + " " + eventId
